@@ -12,11 +12,6 @@ const int dirPin1 = 4;
 const int stepPin2 = 6;
 const int dirPin2 = 7;
 const int ENpin = 10;
-int SPS = 0;
-
-unsigned long steps;
-unsigned long turnStps;
-unsigned long T;
 
 // Example 5 (from website) - Receive with start- and end-markers combined with parsing
 
@@ -29,15 +24,25 @@ char dirRobot[numChars] = {0};
 float degreeVal = 0.0;
 int motorSpd = 0;
 int timeSet = 0;
+int LED;
 
 boolean newData = false;
+
+//Define the speed of motors (steps/sec), 1rev = 200steps
+int SPS = 1000*(motorSpd/100);  
+//Calculate the amount of steps for foward/backward direction
+unsigned long steps = SPS*(timeSet/1000);
+//Calculate the amount of steps for turning 
+unsigned long turnStps = (200*degreeVal)/360;
+//Calculate pulse period
+unsigned long T = 1000000/SPS;
 
 //============
 
 void setup() {
     Serial.begin(9600);
     Serial.println("This expects board to receive direction, degrees, speed percentage, and time desired (ms)");
-    Serial.println("Enter data in this style <Foward, 45.5, 50, 2500>  ");
+    Serial.println("Enter data in this style <Forward, 45.5, 50, 2500>  ");
     Serial.println();
   
 // Sets the two pins as Outputs
@@ -46,18 +51,10 @@ void setup() {
     pinMode(stepPin2,OUTPUT); 
     pinMode(dirPin2,OUTPUT);
     pinMode(ENpin,OUTPUT);
+    pinMode(LED, OUTPUT);
   
     digitalWrite(ENpin, HIGH); //determine the power state of driver. LOW = on and HIGH = off
  
-
-//Define the speed of motors (steps/sec), 1rev = 200steps
-    SPS = 1000*(motorSpd/100);  
-//Calculate the amount of steps for foward/backward direction
-    steps = SPS*(timeSet/1000);
-//Calculate the amount of steps for turning 
-    turnStps = (200*degreeVal)/360;
-//Calculate pulse period
-    T = 1000000/SPS;
 }
 
 //============
@@ -68,11 +65,25 @@ void loop() {
         strcpy(tempChars, receivedChars);
             // this temporary copy is necessary to protect the original data
             //   because strtok() used in parseData() replaces the commas with \0
-        parseData();
-      if (strcmp(dirRobot,"Foward") == 0){
+        
+        parseData(tempChars);
+
+        // Print calculated data values - EmeraldRaspberry
+        Serial.println("================");
+        Serial.print("SPS: ");
+        Serial.println(SPS);
+        Serial.print("Steps: ");
+        Serial.println(steps);
+        Serial.print("TurnStps: ");
+        Serial.println(turnStps);
+        Serial.print("T: ");
+        Serial.println(T);
+        Serial.println("================");
+        
+      if (strcmp(dirRobot,"Forward") == 0){
         moveFoward();
         showParsedData();
-        Serial.println("Moved Foward!");
+        Serial.println("Moved Forward!");
       } else if (strcmp(dirRobot,"Backward") == 0) {
         moveBackward();
         showParsedData();
@@ -122,11 +133,11 @@ void recvWithStartEndMarkers() {
 
 //============
 
-void parseData() {      // split the data into its parts
+int parseData(char* x) {      // split the data into its parts
 
     char * strtokIndx; // this is used by strtok() as an index
 
-    strtokIndx = strtok(tempChars,",");      // get the first part - the string
+    strtokIndx = strtok(x,",");      // get the first part - the string
     strcpy(dirRobot, strtokIndx); // copy it to messageFromPC
  
     strtokIndx = strtok(NULL, ","); // this continues where the previous call left off
@@ -136,7 +147,23 @@ void parseData() {      // split the data into its parts
     motorSpd = atoi(strtokIndx);     // convert this part to a int, integerFromPC
 
     strtokIndx = strtok(NULL, ",");
-    timeSet = atoi(strtokIndx);  
+    timeSet = atoi(strtokIndx);
+
+    Serial.println("Parsing data...");
+    Serial.print("degreeVal <- ");
+    Serial.println(degreeVal);
+    Serial.print("motorSpd <- ");
+    Serial.println(motorSpd);
+    Serial.print("timeSet <- ");
+    Serial.println(timeSet);
+
+    // Equations used for processing data - EmeraldRaspberry
+    SPS = (int)(1000*( (double) motorSpd/100)); 
+    steps = (unsigned long)(SPS*((double) timeSet/1000));
+    turnStps = (unsigned long)((double)(200*degreeVal)/360);
+    T = (unsigned long)((double)1000000/SPS);
+    
+    return(0);
 
 }
 
